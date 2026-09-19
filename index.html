@@ -18,6 +18,47 @@ main{padding:14px}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#17324d;color:white;padding:11px 16px;border-radius:10px;display:none;z-index:40}
 .overlay{position:fixed;inset:0;background:#fff;display:none;align-items:center;justify-content:center;z-index:50}.overlay.show{display:flex}.pinbox{width:min(360px,90%);text-align:center}.pinbox input{width:100%;padding:14px;text-align:center;letter-spacing:8px;font-size:1.4rem;border:1px solid var(--border);border-radius:12px;margin:12px 0}.muted{color:var(--muted);font-size:.9rem}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.card{grid-template-columns:auto 1fr}.actions{grid-column:2;justify-content:flex-start}.top{position:relative}}
+.warning-modal{
+  position:fixed;
+  inset:0;
+  background:#0009;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+  padding:20px;
+}
+
+.warning-modal.show{
+  display:flex;
+}
+
+.warning-box{
+  width:min(430px,100%);
+  background:#fff;
+  border-radius:20px;
+  padding:30px 24px;
+  text-align:center;
+  box-shadow:0 15px 50px #0005;
+}
+
+.warning-icon{
+  font-size:52px;
+  margin-bottom:10px;
+}
+
+.warning-box h2{
+  margin:5px 0 10px;
+  color:var(--danger);
+  font-size:1.45rem;
+}
+
+.warning-box p{
+  margin:0 0 22px;
+  color:var(--muted);
+  font-size:1rem;
+  line-height:1.8;
+}
 </style></head>
 <body>
 <div class="app">
@@ -97,7 +138,41 @@ $('cancelBtn').onclick=()=>$('modal').classList.remove('show');$('addBtn').oncli
 $('list').onclick=async e=>{let b=e.target;if(b.dataset.call)location.href='tel:'+b.dataset.call;if(b.dataset.edit)openForm(customers.find(c=>c.id===b.dataset.edit));if(b.dataset.del){if(confirm('این مشتری حذف شود؟')){await del(b.dataset.del);selected.delete(b.dataset.del);await load();toast('حذف شد')}}};
 $('list').onchange=e=>{if(e.target.dataset.sel){let id=e.target.dataset.sel;e.target.checked?selected.add(id):selected.delete(id);render()}};
 $('selectAll').onclick=()=>{let q=$('search').value.trim().toLowerCase();customers.filter(c=>[c.name,c.nationalId,c.phone].join(' ').toLowerCase().includes(q)).forEach(c=>selected.add(c.id));render()};
-$('smsBtn').onclick=()=>{let arr=customers.filter(c=>selected.has(c.id)&&c.phone);if(!arr.length)return toast('ابتدا مشتری انتخاب کنید');let body=prompt('متن پیام را وارد کنید:');if(body!==null)location.href='sms:'+arr.map(c=>c.phone).join(',')+'?body='+encodeURIComponent(body)};
+$('smsBtn').onclick=()=>{
+
+  let arr=customers.filter(c=>selected.has(c.id)&&c.phone);
+
+
+
+  if(!arr.length){
+
+    return toast('ابتدا مشتری انتخاب کنید');
+
+  }
+
+
+
+  let body=prompt(
+
+    'متن پیام را وارد کنید:',
+
+    'سلام، وقت بخیر 🌹\nمراجعه کننده گرامی لطفا جهت دریافت اسناد عودتی خود به این نمایندگی مراجعه کنید\nبا تشکر اسدالهی نمایندگی ۷۰۲۹ بیمه دی.'
+
+  );
+
+
+
+  if(body!==null){
+
+    location.href=
+
+      'sms:'+arr.map(c=>c.phone).join(',')+
+
+      '?body='+encodeURIComponent(body);
+
+  }
+
+};
 function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 $('exportBtn').onclick=()=>download('customers-backup.json',JSON.stringify({version:1,exportedAt:new Date().toISOString(),customers},null,2),'application/json');
 $('importBtn').onclick=()=>$('fileInput').click();
