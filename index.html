@@ -59,7 +59,40 @@ ${c.notes?`<div class="meta" style="margin-top:9px">📝 ${esc(c.notes)}</div>`:
 <div class="actions"><button class="iconbtn" data-call="${c.phone}">📞 تماس</button><button class="iconbtn" data-edit="${c.id}">✏ ویرایش</button><button class="iconbtn" data-del="${c.id}">🗑 حذف</button></div></div></div>`).join(''):`<div class="empty">هنوز مشتری ثبت نشده یا نتیجه‌ای پیدا نشد.</div>`}
 function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function openForm(c){editing=c?.id||null;$('modalTitle').textContent=editing?'ویرایش مشتری':'مشتری جدید';$('name').value=c?.name||'';$('nationalId').value=c?.nationalId||'';$('phone').value=c?.phone||'';$('date').value=c?.date||new Date().toISOString().slice(0,10);$('notes').value=c?.notes||'';$('modal').classList.add('show');setTimeout(()=>$('name').focus(),100)}
-$('form').onsubmit=async e=>{e.preventDefault();let c={id:editing||crypto.randomUUID(),name:$('name').value.trim(),nationalId:$('nationalId').value.trim(),phone:$('phone').value.trim(),date:$('date').value,notes:$('notes').value.trim()};await save(c);$('modal').classList.remove('show');await load();toast('ذخیره شد')};
+$('form').onsubmit=async e=>{
+  e.preventDefault();
+
+  let nationalId=$('nationalId').value.trim();
+
+  // جلوگیری از ثبت کد ملی تکراری
+  if(nationalId){
+    let duplicate=customers.find(c =>
+      c.nationalId &&
+      c.nationalId.trim()===nationalId &&
+      c.id!==editing
+    );
+
+    if(duplicate){
+      toast('⚠️ این کد ملی قبلاً ثبت شده است');
+      $('nationalId').focus();
+      return;
+    }
+  }
+
+  let c={
+    id:editing||crypto.randomUUID(),
+    name:$('name').value.trim(),
+    nationalId:nationalId,
+    phone:$('phone').value.trim(),
+    date:$('date').value,
+    notes:$('notes').value.trim()
+  };
+
+  await save(c);
+  $('modal').classList.remove('show');
+  await load();
+  toast('ذخیره شد');
+};
 $('cancelBtn').onclick=()=>$('modal').classList.remove('show');$('addBtn').onclick=()=>openForm();$('search').oninput=render;
 $('list').onclick=async e=>{let b=e.target;if(b.dataset.call)location.href='tel:'+b.dataset.call;if(b.dataset.edit)openForm(customers.find(c=>c.id===b.dataset.edit));if(b.dataset.del){if(confirm('این مشتری حذف شود؟')){await del(b.dataset.del);selected.delete(b.dataset.del);await load();toast('حذف شد')}}};
 $('list').onchange=e=>{if(e.target.dataset.sel){let id=e.target.dataset.sel;e.target.checked?selected.add(id):selected.delete(id);render()}};
@@ -68,7 +101,108 @@ $('smsBtn').onclick=()=>{let arr=customers.filter(c=>selected.has(c.id)&&c.phone
 function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 $('exportBtn').onclick=()=>download('customers-backup.json',JSON.stringify({version:1,exportedAt:new Date().toISOString(),customers},null,2),'application/json');
 $('importBtn').onclick=()=>$('fileInput').click();
-$('fileInput').onchange=async e=>{let f=e.target.files[0];if(!f)return;let t=await f.text();try{let data;if(f.name.toLowerCase().endsWith('.json'))data=JSON.parse(t).customers||JSON.parse(t);else{let lines=t.split(/\r?\n/).filter(Boolean),h=lines.shift().split(',').map(x=>x.trim());data=lines.map(line=>{let v=line.split(',');return Object.fromEntries(h.map((k,i)=>[k,v[i]||'']))})}if(!Array.isArray(data))throw 0;for(let c of data){if(!c.id)c.id=crypto.randomUUID();await save({...c,name:c.name||c['نام و نام خانوادگی']||'',nationalId:c.nationalId||c['شماره ملی']||'',phone:c.phone||c['شماره تماس']||''})}await load();toast('اطلاعات وارد شد')}catch(err){toast('فایل قابل خواندن نیست')}e.target.value=''};
+$('fileInput').onchange=async e=>{
+  let f=e.target.files[0];
+  if(!f)return;
+
+  let t=await f.text();
+
+  try{
+    let data;
+
+    if(f.name.toLowerCase().endsWith('.json')){
+      let json=JSON.parse(t);
+      data=json.customers||json;
+    }else{
+      let lines=t.split(/\r?\n/).filter(Boolean);
+      let h=lines.shift().split(',').map(x=>x.trim());
+
+      data=lines.map(line=>{
+        let v=line.split(',');
+        return Object.fromEntries(
+          h.map((k,i)=>[k,v[i]||''])
+        );
+      });
+    }
+
+    if(!Array.isArray(data))throw 0;
+
+    let existingNationalIds=new Set(
+      customers
+        .map(c=>(c.nationalId||'').trim())
+        .filter(Boolean)
+    );
+
+    let importedNationalIds=new Set();
+
+    let added=0;
+    let skipped=0;
+
+    for(let c of data){
+
+      let nationalId=(
+        c.nationalId||
+        c['شماره ملی']||
+        ''
+      ).trim();
+
+      let name=(
+        c.name||
+        c['نام و نام خانوادگی']||
+        ''
+      ).trim();
+
+      let phone=(
+        c.phone||
+        c['شماره تماس']||
+        ''
+      ).trim();
+
+      // بررسی کد ملی تکراری
+      if(
+        nationalId &&
+        (
+          existingNationalIds.has(nationalId) ||
+          importedNationalIds.has(nationalId)
+        )
+      ){
+        skipped++;
+        continue;
+      }
+
+      let customer={
+        id:c.id||crypto.randomUUID(),
+        name:name,
+        nationalId:nationalId,
+        phone:phone,
+        date:c.date||'',
+        notes:c.notes||''
+      };
+
+      await save(customer);
+
+      if(nationalId){
+        existingNationalIds.add(nationalId);
+        importedNationalIds.add(nationalId);
+      }
+
+      added++;
+    }
+
+    await load();
+
+    if(skipped){
+      toast(`✅ ${added} نفر وارد شد | ⚠️ ${skipped} رکورد تکراری رد شد`);
+    }else{
+      toast(`✅ ${added} نفر وارد شد`);
+    }
+
+  }catch(err){
+    toast('❌ فایل قابل خواندن نیست');
+  }
+
+  e.target.value='';
+};
 
 $('settingsBtn').onclick=()=>{$('fontSize').value=getComputedStyle(document.documentElement).fontSize.replace('px','');$('settings').classList.add('show')};
 $('closeSettings').onclick=()=>$('settings').classList.remove('show');$('saveSettings').onclick=()=>{localStorage.fontSize=$('fontSize').value;document.documentElement.style.fontSize=localStorage.fontSize+'px';$('settings').classList.remove('show');toast('تنظیمات ذخیره شد')};
