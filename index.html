@@ -65,7 +65,7 @@ main{padding:14px}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12
 <header class="top"><h1>مدیریت مشتریان</h1>
 <div class="tools"><input id="search" placeholder="جستجو نام، کد ملی یا شماره تماس…"><button class="btn" id="addBtn">＋ مشتری جدید</button><button class="btn" id="settingsBtn">⚙ تنظیمات</button></div></header>
 <main><div class="summary"><div class="stat">کل مشتریان<b id="count">۰</b></div><div class="stat">انتخاب‌شده<b id="selectedCount">۰</b></div></div>
-<div class="tools" style="margin-bottom:12px"><button class="btn ghost" id="selectAll">انتخاب همه</button><button class="btn ghost" id="smsBtn">✉ پیام گروهی</button><button class="btn ghost" id="exportBtn">⬇ خروجی</button><button class="btn ghost" id="importBtn">⬆ ورود اطلاعات</button><input type="file" id="fileInput" accept=".json,.csv" hidden></div>
+<div class="tools" style="margin-bottom:12px"><button class="btn ghost" id="selectAll">انتخاب همه</button><button class="btn danger" id="deleteSelected">🗑 حذف انتخاب‌شده‌ها</button><button class="btn ghost" id="smsBtn">✉ پیام گروهی</button><button class="btn ghost" id="exportBtn">⬇ خروجی</button><button class="btn ghost" id="importBtn">⬆ ورود اطلاعات</button><input type="file" id="fileInput" accept=".json,.csv" hidden></div>
 <div id="list" class="list"></div></main>
 </div>
 
@@ -82,12 +82,20 @@ main{padding:14px}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12
 
 <div class="overlay" id="pinOverlay"><div class="pinbox"><h2>🔐 ورود به برنامه</h2><div class="muted">برای ورود، رمز PIN را وارد کنید.</div><input id="pinInput" type="password" inputmode="numeric" maxlength="6"><button class="btn primary" id="pinSubmit">ورود</button><p class="muted" id="pinHint"></p></div></div>
 <div class="toast" id="toast"></div>
+<div class="warning-modal" id="warningModal">
+  <div class="warning-box">
+    <div class="warning-icon">⚠️</div>
+    <h2>کد ملی تکراری</h2>
+    <p>این کد ملی قبلاً در سیستم ثبت شده است.</p>
+    <button class="btn primary" id="closeWarning">متوجه شدم</button>
+  </div>
+</div>
 
 <script>
 const DB='customers-pwa', STORE='customers'; let db, customers=[], editing=null, selected=new Set();
 const $=id=>document.getElementById(id);
 function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2200)}
-function openDB(){return new Promise((res,rej)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:'id'});r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
+function openDB(){return new Promise((res,rej)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
 function tx(mode='readonly'){return db.transaction(STORE,mode).objectStore(STORE)}
 async function load(){customers=await new Promise((res,rej)=>{let r=tx().getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});render()}
 function save(c){return new Promise((res,rej)=>{let r=tx('readwrite').put(c);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
@@ -114,7 +122,7 @@ $('form').onsubmit=async e=>{
     );
 
     if(duplicate){
-      toast('⚠️ این کد ملی قبلاً ثبت شده است');
+      $('warningModal').classList.add('show');
       $('nationalId').focus();
       return;
     }
@@ -138,6 +146,20 @@ $('cancelBtn').onclick=()=>$('modal').classList.remove('show');$('addBtn').oncli
 $('list').onclick=async e=>{let b=e.target;if(b.dataset.call)location.href='tel:'+b.dataset.call;if(b.dataset.edit)openForm(customers.find(c=>c.id===b.dataset.edit));if(b.dataset.del){if(confirm('این مشتری حذف شود؟')){await del(b.dataset.del);selected.delete(b.dataset.del);await load();toast('حذف شد')}}};
 $('list').onchange=e=>{if(e.target.dataset.sel){let id=e.target.dataset.sel;e.target.checked?selected.add(id):selected.delete(id);render()}};
 $('selectAll').onclick=()=>{let q=$('search').value.trim().toLowerCase();customers.filter(c=>[c.name,c.nationalId,c.phone].join(' ').toLowerCase().includes(q)).forEach(c=>selected.add(c.id));render()};
+$('deleteSelected').onclick=async()=>{
+  if(!selected.size){
+    toast('ابتدا مشتری را انتخاب کنید');
+    return;
+  }
+  if(!confirm(`آیا ${selected.size} مشتری انتخاب‌شده حذف شوند؟`)) return;
+  for(const id of [...selected]) await del(id);
+  selected.clear();
+  await load();
+  toast('مشتریان انتخاب‌شده حذف شدند');
+};
+$('closeWarning').onclick=()=>{
+  $('warningModal').classList.remove('show');
+};
 $('smsBtn').onclick=()=>{
 
   let arr=customers.filter(c=>selected.has(c.id)&&c.phone);
