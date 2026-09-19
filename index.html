@@ -72,7 +72,7 @@ $('fileInput').onchange=async e=>{let f=e.target.files[0];if(!f)return;let t=awa
 
 $('settingsBtn').onclick=()=>{$('fontSize').value=getComputedStyle(document.documentElement).fontSize.replace('px','');$('settings').classList.add('show')};
 $('closeSettings').onclick=()=>$('settings').classList.remove('show');$('saveSettings').onclick=()=>{localStorage.fontSize=$('fontSize').value;document.documentElement.style.fontSize=localStorage.fontSize+'px';$('settings').classList.remove('show');toast('تنظیمات ذخیره شد')};
-$('lockBtn').onclick=()=>{sessionStorage.removeItem('unlocked');$('settings').classList.remove('show');checkPin()};
+
 async function init(){document.documentElement.style.fontSize=(localStorage.fontSize||16)+'px';await openDB();await load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');}
 init();
 </script></body></html>
