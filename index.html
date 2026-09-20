@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1565c0"><link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg"><title>مدیریت مشتریان</title>
+<style>
+:root{--blue:#1565c0;--blue2:#0d47a1;--bg:#f4f8fc;--card:#fff;--text:#17324d;--muted:#6b7b8c;--border:#d9e4ef;--danger:#c62828;font-size:16px}
+*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:1rem}
+button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
+.app{max-width:1100px;margin:auto;min-height:100vh}.top{background:linear-gradient(135deg,var(--blue2),var(--blue));color:white;padding:18px 16px 20px;position:sticky;top:0;z-index:5;box-shadow:0 2px 12px #0002}
+.top h1{margin:0 0 12px;font-size:1.35rem}.tools{display:flex;gap:8px;flex-wrap:wrap}.tools input{flex:1;min-width:190px;padding:11px 13px;border-radius:10px;border:0;outline:0;background:#fff;color:#123}
+.btn{padding:10px 13px;border-radius:10px;background:#fff;color:var(--blue2);font-weight:bold}.btn.primary{background:var(--blue);color:white}.btn.ghost{background:#e9f2ff}.btn.danger{background:#ffebee;color:var(--danger)}
+main{padding:14px}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.stat{background:var(--card);border:1px solid var(--border);padding:12px 15px;border-radius:12px;min-width:140px}.stat b{display:block;font-size:1.35rem;color:var(--blue)}
+.list{display:grid;gap:10px}.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start}
+.check{width:22px;height:22px;margin-top:4px}.name{font-weight:bold;font-size:1.08rem}.meta{color:var(--muted);font-size:.9rem;margin-top:5px;line-height:1.8}.actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.iconbtn{padding:9px 10px;border-radius:9px;background:#edf5ff;color:var(--blue2)}.empty{text-align:center;padding:45px 20px;color:var(--muted);background:#fff;border-radius:14px;border:1px dashed var(--border)}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:20}.modal.show{display:flex}.sheet{background:white;width:min(720px,100%);max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}.sheet h2{margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:.9rem;margin-bottom:5px;font-weight:bold}.field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:9px;outline:none;background:white}.field textarea{min-height:90px;resize:vertical}.full{grid-column:1/-1}.modal-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:16px;flex-wrap:wrap}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#17324d;color:white;padding:11px 16px;border-radius:10px;display:none;z-index:40}
+.overlay{position:fixed;inset:0;background:#fff;display:none;align-items:center;justify-content:center;z-index:50}.overlay.show{display:flex}.pinbox{width:min(360px,90%);text-align:center}.pinbox input{width:100%;padding:14px;text-align:center;letter-spacing:8px;font-size:1.4rem;border:1px solid var(--border);border-radius:12px;margin:12px 0}.muted{color:var(--muted);font-size:.9rem}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.card{grid-template-columns:auto 1fr}.actions{grid-column:2;justify-content:flex-start}.top{position:relative}}
+.warning-modal{
+  position:fixed;
+  inset:0;
+  background:#0009;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+  padding:20px;
+}
+
+.warning-modal.show{
+  display:flex;
+}
+
+.warning-box{
+  width:min(430px,100%);
+  background:#fff;
+  border-radius:20px;
+  padding:30px 24px;
+  text-align:center;
+  box-shadow:0 15px 50px #0005;
+}
+
+.warning-icon{
+  font-size:52px;
+  margin-bottom:10px;
+}
+
+.warning-box h2{
+  margin:5px 0 10px;
+  color:var(--danger);
+  font-size:1.45rem;
+}
+
+.warning-box p{
+  margin:0 0 22px;
+  color:var(--muted);
+  font-size:1rem;
+  line-height:1.8;
+}
+</style></head>
+<body>
+<div class="app">
+<header class="top"><h1>مدیریت مشتریان</h1>
+<div class="tools"><input id="search" placeholder="جستجو نام، کد ملی یا شماره تماس…"><button class="btn" id="addBtn">＋ مشتری جدید</button><button class="btn" id="settingsBtn">⚙ تنظیمات</button></div></header>
+<main><div class="summary"><div class="stat">کل مشتریان<b id="count">۰</b></div><div class="stat">انتخاب‌شده<b id="selectedCount">۰</b></div></div>
+<div class="tools" style="margin-bottom:12px"><button class="btn ghost" id="selectAll">انتخاب همه</button><button class="btn ghost" id="smsBtn">✉ پیام گروهی</button><button class="btn ghost" id="exportBtn">⬇ خروجی</button><button class="btn ghost" id="importBtn">⬆ ورود اطلاعات</button><input type="file" id="fileInput" accept=".json,.csv" hidden></div>
+<div id="list" class="list"></div></main>
+</div>
+
+<div class="modal" id="modal"><div class="sheet"><h2 id="modalTitle">مشتری جدید</h2><form id="form"><div class="grid">
+<div class="field"><label>نام و نام خانوادگی *</label><input id="name" required></div>
+<div class="field"><label>شماره ملی</label><input id="nationalId" inputmode="numeric" maxlength="10"></div>
+<div class="field"><label>شماره تماس *</label><input id="phone" inputmode="tel" required></div>
+<div class="field"><label>تاریخ ثبت</label><input id="date" type="date"></div>
+<div class="field full"><label>یادداشت</label><textarea id="notes"></textarea></div></div>
+<div class="modal-actions"><button class="btn primary" type="submit">ذخیره</button><button class="btn" type="button" id="cancelBtn">انصراف</button></div></form></div></div>
+
+<div class="modal" id="settings"><div class="sheet"><h2>تنظیمات</h2><div class="field"><label>اندازه فونت</label><select id="fontSize"><option value="14">کوچک</option><option value="16">متوسط</option><option value="18">بزرگ</option><option value="21">خیلی بزرگ</option></select></div>
+<div style="margin-top:18px;padding-top:14px;border-top:1px solid #ddd">
+<label style="font-weight:700">پشتیبان‌گیری</label>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+<button class="btn primary" id="backupBtn" type="button">💾 پشتیبان‌گیری الآن</button>
+<button class="btn" id="restoreBtn" type="button">♻️ بازیابی آخرین پشتیبان</button>
+</div>
+<div id="backupStatus" class="muted" style="margin-top:8px"></div>
+</div>
+<div class="modal-actions"><button class="btn primary" id="saveSettings">ذخیره</button><button class="btn" id="closeSettings">بستن</button></div></div></div>
+
+<div class="overlay" id="pinOverlay"><div class="pinbox"><h2>🔐 ورود به برنامه</h2><div class="muted">برای ورود، رمز PIN را وارد کنید.</div><input id="pinInput" type="password" inputmode="numeric" maxlength="6"><button class="btn primary" id="pinSubmit">ورود</button><p class="muted" id="pinHint"></p></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DB='customers-pwa', STORE='customers', BACKUP_STORE='backups'; let db, customers=[], editing=null, selected=new Set();
+const $=id=>document.getElementById(id);
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2200)}
+function openDB(){return new Promise((res,rej)=>{let r=indexedDB.open(DB,2);r.onupgradeneeded=()=>{let d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});if(!d.objectStoreNames.contains(BACKUP_STORE))d.createObjectStore(BACKUP_STORE,{keyPath:'id'})};r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
+function tx(mode='readonly'){return db.transaction(STORE,mode).objectStore(STORE)}
+async function load(makeBackup=true){customers=await new Promise((res,rej)=>{let r=tx().getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});render();if(makeBackup&&customers.length)await createLocalBackup()}
+function save(c){return new Promise((res,rej)=>{let r=tx('readwrite').put(c);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+function del(id){return new Promise((res,rej)=>{let r=tx('readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+async function createLocalBackup(){
+  if(!db)return;
+  const backup={id:'latest',createdAt:new Date().toISOString(),customers:customers.map(c=>({...c}))};
+  await new Promise((res,rej)=>{
+    const t=db.transaction(BACKUP_STORE,'readwrite');
+    t.objectStore(BACKUP_STORE).put(backup);
+    t.oncomplete=()=>res();
+    t.onerror=()=>rej(t.error);
+  });
+  localStorage.setItem('lastBackupAt',backup.createdAt);
+}
+async function getLocalBackup(){
+  return await new Promise((res,rej)=>{
+    const t=db.transaction(BACKUP_STORE,'readonly');
+    const r=t.objectStore(BACKUP_STORE).get('latest');
+    r.onsuccess=()=>res(r.result||null);
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function restoreLocalBackup(){
+  const backup=await getLocalBackup();
+  if(!backup||!Array.isArray(backup.customers)){toast('پشتیبان محلی پیدا نشد');return}
+  if(!confirm('اطلاعات فعلی با آخرین پشتیبان جایگزین شود؟'))return;
+  await new Promise((res,rej)=>{
+    const t=db.transaction(STORE,'readwrite'), s=t.objectStore(STORE);
+    s.clear();backup.customers.forEach(c=>s.put(c));
+    t.oncomplete=()=>res();t.onerror=()=>rej(t.error);
+  });
+  await load(false);updateBackupStatus();toast('♻️ بازیابی با موفقیت انجام شد');
+}
+function updateBackupStatus(){
+  const el=$('backupStatus');if(!el)return;
+  const t=localStorage.getItem('lastBackupAt');
+  el.textContent=t?'آخرین پشتیبان: '+new Date(t).toLocaleString('fa-IR'):'هنوز پشتیبان ثبت نشده است';
+}
+
+function fa(n){return new Intl.NumberFormat('fa-IR').format(n)}
+function render(){let q=$('search').value.trim().toLowerCase();let arr=customers.filter(c=>[c.name,c.nationalId,c.phone].join(' ').toLowerCase().includes(q));$('count').textContent=fa(customers.length);$('selectedCount').textContent=fa(selected.size);$('list').innerHTML=arr.length?arr.map(c=>`<div class="card"><input class="check" type="checkbox" data-sel="${c.id}" ${selected.has(c.id)?'checked':''}>
+<div class="customer-main"><div class="customer-head"><div style="display:flex;align-items:center;gap:10px"><div class="avatar">${esc((c.name||'م').trim().charAt(0))}</div><div><div class="name">${esc(c.name)}</div></div></div></div>
+<div class="info-grid"><div class="info"><small>📱 شماره تماس</small><span>${esc(c.phone||'—')}</span></div><div class="info"><small>🪪 کد ملی</small><span>${esc(c.nationalId||'—')}</span></div></div>
+${c.notes?`<div class="meta" style="margin-top:9px">📝 ${esc(c.notes)}</div>`:''}
+<div class="actions"><button class="iconbtn" data-call="${c.phone}">📞 تماس</button><button class="iconbtn" data-edit="${c.id}">✏ ویرایش</button><button class="iconbtn" data-del="${c.id}">🗑 حذف</button></div></div></div>`).join(''):`<div class="empty">هنوز مشتری ثبت نشده یا نتیجه‌ای پیدا نشد.</div>`}
+function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function openForm(c){editing=c?.id||null;$('modalTitle').textContent=editing?'ویرایش مشتری':'مشتری جدید';$('name').value=c?.name||'';$('nationalId').value=c?.nationalId||'';$('phone').value=c?.phone||'';$('date').value=c?.date||new Date().toISOString().slice(0,10);$('notes').value=c?.notes||'';$('modal').classList.add('show');setTimeout(()=>$('name').focus(),100)}
+$('form').onsubmit=async e=>{
+  e.preventDefault();
+
+  let nationalId=$('nationalId').value.trim();
+
+  // جلوگیری از ثبت کد ملی تکراری
+  if(nationalId){
+    let duplicate=customers.find(c =>
+      c.nationalId &&
+      c.nationalId.trim()===nationalId &&
+      c.id!==editing
+    );
+
+    if(duplicate){
+      toast('⚠️ این کد ملی قبلاً ثبت شده است');
+      $('nationalId').focus();
+      return;
+    }
+  }
+
+  let c={
+    id:editing||crypto.randomUUID(),
+    name:$('name').value.trim(),
+    nationalId:nationalId,
+    phone:$('phone').value.trim(),
+    date:$('date').value,
+    notes:$('notes').value.trim()
+  };
+
+  await save(c);
+  $('modal').classList.remove('show');
+  await load();
+  toast('ذخیره شد');
+};
+$('cancelBtn').onclick=()=>$('modal').classList.remove('show');$('addBtn').onclick=()=>openForm();$('search').oninput=render;
+$('list').onclick=async e=>{let b=e.target;if(b.dataset.call)location.href='tel:'+b.dataset.call;if(b.dataset.edit)openForm(customers.find(c=>c.id===b.dataset.edit));if(b.dataset.del){if(confirm('این مشتری حذف شود؟')){await del(b.dataset.del);selected.delete(b.dataset.del);await load();toast('حذف شد')}}};
+$('list').onchange=e=>{if(e.target.dataset.sel){let id=e.target.dataset.sel;e.target.checked?selected.add(id):selected.delete(id);render()}};
+$('selectAll').onclick=()=>{let q=$('search').value.trim().toLowerCase();customers.filter(c=>[c.name,c.nationalId,c.phone].join(' ').toLowerCase().includes(q)).forEach(c=>selected.add(c.id));render()};
+$('smsBtn').onclick=()=>{
+
+  let arr=customers.filter(c=>selected.has(c.id)&&c.phone);
+
+
+
+  if(!arr.length){
+
+    return toast('ابتدا مشتری انتخاب کنید');
+
+  }
+
+
+
+  let body=prompt(
+
+    'متن پیام را وارد کنید:',
+
+    'سلام، وقت بخیر 🌹\nمراجعه کننده گرامی لطفا جهت دریافت اسناد عودتی خود به این نمایندگی مراجعه کنید\nبا تشکر اسدالهی نمایندگی ۷۰۲۹ بیمه دی.'
+
+  );
+
+
+
+  if(body!==null){
+
+    location.href=
+
+      'sms:'+arr.map(c=>c.phone).join(',')+
+
+      '?body='+encodeURIComponent(body);
+
+  }
+
+};
+function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('exportBtn').onclick=()=>download('customers-backup.json',JSON.stringify({version:1,exportedAt:new Date().toISOString(),customers},null,2),'application/json');
+$('importBtn').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=async e=>{
+  let f=e.target.files[0];
+  if(!f)return;
+
+  let t=await f.text();
+
+  try{
+    let data;
+
+    if(f.name.toLowerCase().endsWith('.json')){
+      let json=JSON.parse(t);
+      data=json.customers||json;
+    }else{
+      let lines=t.split(/\r?\n/).filter(Boolean);
+      let h=lines.shift().split(',').map(x=>x.trim());
+
+      data=lines.map(line=>{
+        let v=line.split(',');
+        return Object.fromEntries(
+          h.map((k,i)=>[k,v[i]||''])
+        );
+      });
+    }
+
+    if(!Array.isArray(data))throw 0;
+
+    let existingNationalIds=new Set(
+      customers
+        .map(c=>(c.nationalId||'').trim())
+        .filter(Boolean)
+    );
+
+    let importedNationalIds=new Set();
+
+    let added=0;
+    let skipped=0;
+
+    for(let c of data){
+
+      let nationalId=(
+        c.nationalId||
+        c['شماره ملی']||
+        ''
+      ).trim();
+
+      let name=(
+        c.name||
+        c['نام و نام خانوادگی']||
+        ''
+      ).trim();
+
+      let phone=(
+        c.phone||
+        c['شماره تماس']||
+        ''
+      ).trim();
+
+      // بررسی کد ملی تکراری
+      if(
+        nationalId &&
+        (
+          existingNationalIds.has(nationalId) ||
+          importedNationalIds.has(nationalId)
+        )
+      ){
+        skipped++;
+        continue;
+      }
+
+      let customer={
+        id:c.id||crypto.randomUUID(),
+        name:name,
+        nationalId:nationalId,
+        phone:phone,
+        date:c.date||'',
+        notes:c.notes||''
+      };
+
+      await save(customer);
+
+      if(nationalId){
+        existingNationalIds.add(nationalId);
+        importedNationalIds.add(nationalId);
+      }
+
+      added++;
+    }
+
+    await load();
+
+    if(skipped){
+      toast(`✅ ${added} نفر وارد شد | ⚠️ ${skipped} رکورد تکراری رد شد`);
+    }else{
+      toast(`✅ ${added} نفر وارد شد`);
+    }
+
+  }catch(err){
+    toast('❌ فایل قابل خواندن نیست');
+  }
+
+  e.target.value='';
+};
+
+
+$('backupBtn').onclick=async()=>{await createLocalBackup();updateBackupStatus();toast('💾 پشتیبان ذخیره شد')};
+$('restoreBtn').onclick=restoreLocalBackup;
+
+$('settingsBtn').onclick=()=>{$('fontSize').value=getComputedStyle(document.documentElement).fontSize.replace('px','');$('settings').classList.add('show')};
+$('closeSettings').onclick=()=>$('settings').classList.remove('show');$('saveSettings').onclick=()=>{localStorage.fontSize=$('fontSize').value;document.documentElement.style.fontSize=localStorage.fontSize+'px';$('settings').classList.remove('show');toast('تنظیمات ذخیره شد')};
+
+async function init(){document.documentElement.style.fontSize=(localStorage.fontSize||16)+'px';await openDB();await load();updateBackupStatus();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');}
+init();
+</script></body></html>
